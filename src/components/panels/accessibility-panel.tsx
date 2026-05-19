@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -19,6 +20,8 @@ import {
   Play,
   Square,
   Settings2,
+  Send,
+  Keyboard,
 } from "lucide-react"
 import { useAccessibilityStore, type SignLanguageGesture } from "@/stores/accessibility-store"
 import { useTranscriptStore } from "@/stores/transcript-store"
@@ -159,6 +162,58 @@ function CaptionDisplay({
 }
 
 /**
+ * Text Input for Demo/Testing - allows deaf users to type input
+ * and see the accessibility features in action
+ */
+function DemoTextInput() {
+  const [inputText, setInputText] = useState("")
+  const { speak, isSupported } = useTts()
+  const { translate } = useTranslation()
+  const store = useAccessibilityStore()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inputText.trim()) return
+
+    // Add to transcript store so it appears in captions
+    useTranscriptStore.getState().addSegment({
+      id: crypto.randomUUID(),
+      text: inputText.trim(),
+      is_final: true,
+      confidence: 1.0,
+      words: [],
+      timestamp: Date.now(),
+    })
+
+    // Translate if enabled
+    if (store.translationEnabled) {
+      await translate(inputText)
+    }
+
+    // Speak if TTS is enabled
+    if (store.ttsEnabled && isSupported) {
+      speak(inputText)
+    }
+
+    setInputText("")
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex gap-2">
+      <Input
+        value={inputText}
+        onChange={(e) => setInputText(e.target.value)}
+        placeholder="Type text to test accessibility..."
+        className="h-8 flex-1 text-xs"
+      />
+      <Button type="submit" size="sm" variant="default">
+        <Send className="size-3" />
+      </Button>
+    </form>
+  )
+}
+
+/**
  * Accessibility controls panel
  */
 function AccessibilityControls() {
@@ -168,6 +223,7 @@ function AccessibilityControls() {
   const currentPartial = useTranscriptStore((s) => s.currentPartial)
   const segments = useTranscriptStore((s) => s.segments)
   const [showSettings, setShowSettings] = useState(false)
+  const [showDemoInput, setShowDemoInput] = useState(false)
 
   const lastText = segments.length > 0 ? segments[segments.length - 1].text : ""
 
@@ -198,6 +254,20 @@ function AccessibilityControls() {
 
   return (
     <div className="flex flex-col gap-3 border-t border-border p-3">
+      {/* Demo Input for Testing */}
+      <div className="flex flex-col gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setShowDemoInput(!showDemoInput)}
+          className="w-full justify-start"
+        >
+          <Keyboard className="size-3" />
+          {showDemoInput ? "Hide" : "Show"} Demo Input (for Deaf Users)
+        </Button>
+        {showDemoInput && <DemoTextInput />}
+      </div>
+
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">
         {isSupported && (

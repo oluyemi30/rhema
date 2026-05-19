@@ -61,6 +61,11 @@ export function TranscriptPanel() {
     startTranscription,
     stopTranscription,
   } = useTranscription({ onMissingApiKey })
+  
+  // Web Speech API fallback for browser testing
+  const webSpeech = useWebSpeech()
+  const isUsingWebSpeech = webSpeech.isSupported && !webSpeech.isTauri
+  
   const hasPartial = useTranscriptStore((s) => s.currentPartial.length > 0)
   const scrollRef = useRef<HTMLDivElement>(null)
   
@@ -68,6 +73,23 @@ export function TranscriptPanel() {
   const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported } = useTts()
   const ttsEnabled = useAccessibilityStore((s) => s.ttsEnabled)
   const setTtsEnabled = useAccessibilityStore((s) => s.setTtsEnabled)
+
+  // Use appropriate start/stop functions based on environment
+  const handleStart = useCallback(() => {
+    if (isUsingWebSpeech) {
+      webSpeech.start()
+    } else {
+      startTranscription()
+    }
+  }, [isUsingWebSpeech, webSpeech, startTranscription])
+
+  const handleStop = useCallback(() => {
+    if (isUsingWebSpeech) {
+      webSpeech.stop()
+    } else {
+      stopTranscription()
+    }
+  }, [isUsingWebSpeech, webSpeech, stopTranscription])
 
   useTauriEvent<{ rms: number; peak: number }>("audio_level", (payload) => {
     useAudioStore.getState().setLevel(payload)
@@ -290,19 +312,25 @@ export function TranscriptPanel() {
       </div>
 
       {/* Bottom control */}
-      <div className="flex gap-2 border-t border-border px-3 py-2">
+      <div className="flex items-center gap-2 border-t border-border px-3 py-2">
+        {isUsingWebSpeech && (
+          <span className="flex items-center gap-1 text-[0.625rem] text-muted-foreground" title="Using browser speech recognition for testing">
+            <Globe className="size-3" />
+            Browser
+          </span>
+        )}
         {isTranscribing ? (
           <Button
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive"
-            onClick={stopTranscription}
+            onClick={handleStop}
           >
             <MicOffIcon className="size-3" />
             Stop transcribing
           </Button>
         ) : (
-          <Button variant="ghost" size="sm" onClick={startTranscription}>
+          <Button variant="ghost" size="sm" onClick={handleStart}>
               <MicIcon className="size-3" />
             Start transcribing
           </Button>
