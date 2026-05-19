@@ -57,28 +57,29 @@ export function HomePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [manualInput, setManualInput] = useState("")
   const [showInput, setShowInput] = useState(false)
+  const [hasLoadedInitial, setHasLoadedInitial] = useState(false)
   
   const webSpeech = useWebSpeech()
   const tts = useTts()
 
-  // Fetch and display a verse
-  const loadVerse = useCallback(async (verseKey: string) => {
+  // Fetch and display a verse (no dependencies that change frequently)
+  const loadVerse = useCallback(async (verseKey: string, speakIt: boolean = false, lang: string = "en") => {
     setIsLoading(true)
     try {
       const verse = await getVerseWithTranslations(verseKey)
-      if (verse) {
+      if (verse && verse.text) {
         setCurrentVerse(verse)
         
-        // Speak the verse in selected language
-        if (ttsEnabled && tts.isSupported) {
-          const verseText = verse.text[selectedLang] || verse.text.en
-          tts.speak(verseText)
+        // Speak the verse in selected language if requested
+        if (speakIt && tts.isSupported) {
+          const verseText = verse.text[lang] || verse.text.en || ""
+          if (verseText) tts.speak(verseText)
         }
       }
     } finally {
       setIsLoading(false)
     }
-  }, [selectedLang, ttsEnabled, tts])
+  }, [tts])
 
   // Process text input (from speech or typing)
   const processInput = useCallback(async (text: string) => {
@@ -94,9 +95,9 @@ export function HomePage() {
     // Find relevant verse based on keywords
     const verseKey = findRelevantVerse(text)
     if (verseKey) {
-      await loadVerse(verseKey)
+      await loadVerse(verseKey, ttsEnabled, selectedLang)
     }
-  }, [loadVerse])
+  }, [loadVerse, ttsEnabled, selectedLang])
 
   // Handle new transcripts from speech recognition
   useEffect(() => {
@@ -105,10 +106,13 @@ export function HomePage() {
     }
   }, [webSpeech.transcript, processInput])
 
-  // Load a random verse on mount
+  // Load a random verse on mount (only once)
   useEffect(() => {
-    loadVerse(getRandomVerseKey())
-  }, [loadVerse])
+    if (!hasLoadedInitial) {
+      setHasLoadedInitial(true)
+      loadVerse(getRandomVerseKey(), false, "en")
+    }
+  }, [hasLoadedInitial, loadVerse])
 
   const toggleListening = useCallback(() => {
     if (webSpeech.isListening) {
