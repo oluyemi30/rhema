@@ -1,62 +1,15 @@
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, Volume2, VolumeX, Settings, Hand, BookOpen, Type } from "lucide-react"
+import { Mic, MicOff, Volume2, VolumeX, Settings, Hand, BookOpen, Type, Loader2 } from "lucide-react"
 import { useWebSpeech } from "@/hooks/use-web-speech"
 import { useTts } from "@/hooks/use-tts"
+import { 
+  findRelevantVerse, 
+  getVerseWithTranslations, 
+  getRandomVerseKey,
+  type BibleVerse 
+} from "@/hooks/use-bible-api"
 import { cn } from "@/lib/utils"
-
-// Sample Bible verses in Nigerian languages
-const bibleVerses: Record<string, { ref: string; en: string; yo: string; ig: string; ha: string; pcm: string }[]> = {
-  default: [
-    {
-      ref: "John 3:16",
-      en: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
-      yo: "Nitori Olorun fe araiye to be ti o fi Omo bibi re kanso fun, ki enikeni ti o ba gba a gbo ma ba segbe, sugbon ki o le ni iye ainipekun.",
-      ig: "Nitori na Chineke huru uwa n'anya nke ukwuu, nke mere o jiri nye Oku nwa ya naan'oge, ka onye obula nke kwere na ya ghara ila n'iyi kama o nwee ndu ebighi ebi.",
-      ha: "Gama Allah ya so duniya har ya bada Dansa na musamman, domin duk wanda ya gaskata da shi kada ya hallaka, amma ya samu rai madawwami.",
-      pcm: "Because God love dis world well well, na im make E give im only Son, so dat anybody wey believe am no go die, but go get life wey no go end.",
-    },
-    {
-      ref: "Psalm 23:1",
-      en: "The LORD is my shepherd; I shall not want.",
-      yo: "Oluwa li oluṣọ mi; emi ki yio ṣe alaini.",
-      ig: "Onyenwe anyi bu onye ozuzu aturu m; agaghi m anọ na mkpa.",
-      ha: "Ubangiji shine makiyayina; ba zan rasa komai ba.",
-      pcm: "God na my shepherd; I no go lack anything.",
-    },
-    {
-      ref: "Philippians 4:13",
-      en: "I can do all things through Christ which strengtheneth me.",
-      yo: "Mo le ṣe ohun gbogbo nipase Kristi ti o fun mi ni agbara.",
-      ig: "Enwere m ike ime ihe niile site na Kraist onye na enye m ume.",
-      ha: "Ina iya yin duka abubuwa ta wurin Kristi wanda yake karfafa ni.",
-      pcm: "I fit do everything through Christ wey dey give me power.",
-    },
-    {
-      ref: "Jeremiah 29:11",
-      en: "For I know the thoughts that I think toward you, saith the LORD, thoughts of peace, and not of evil, to give you an expected end.",
-      yo: "Nitori mo mo ero ti mo n ro si yin, ni Oluwa wi, ero alafia, ki i se ero ibi, lati fi ipari ti o dara fun yin.",
-      ig: "Nitori amaara m echiche nke m na-eche banyere unu, ka Onyenwe anyi siri kwuo, echiche udo, osughị nke ihe ojoo, iji nye unu nchekwube na njedebe.",
-      ha: "Gama na san tunanin da nake tunani game da ku, in ji Ubangiji, tunanin zaman lafiya, ba na mugunta ba, don in ba ku bege a karshe.",
-      pcm: "I know the plans wey I get for una, na wetin God talk, plans of peace, no be bad plans, to give una future and hope.",
-    },
-    {
-      ref: "Romans 8:28",
-      en: "And we know that all things work together for good to them that love God.",
-      yo: "Awa si mo pe ohun gbogbo n sise po fun rere awon ti o feran Olorun.",
-      ig: "Anyi makwaara na ihe niile na-arukọ ọrụ maka ọdịmma ndị hụrụ Chineke n'anya.",
-      ha: "Mun kuma san cewa dukan abubuwa suna aiki tare don alheri ga wadanda suke son Allah.",
-      pcm: "We know say everything dey work together for good for people wey love God.",
-    },
-  ],
-}
-
-// Keywords that trigger scripture lookup
-const scriptureKeywords = [
-  "god", "jesus", "lord", "praise", "amen", "hallelujah", "glory", 
-  "holy", "bless", "grace", "faith", "love", "peace", "pray", "worship",
-  "bible", "scripture", "verse", "psalm", "john", "romans"
-]
 
 // Sign language gestures mapping  
 const signGestures: Record<string, string> = {
@@ -94,31 +47,41 @@ function getSignGesture(text: string): string | null {
   return null
 }
 
-function containsScriptureKeyword(text: string): boolean {
-  const lower = text.toLowerCase()
-  return scriptureKeywords.some(keyword => lower.includes(keyword))
-}
-
-function getRandomVerse() {
-  const verses = bibleVerses.default
-  return verses[Math.floor(Math.random() * verses.length)]
-}
-
 export function HomePage() {
   const [transcript, setTranscript] = useState("")
   const [selectedLang, setSelectedLang] = useState("en")
   const [ttsEnabled, setTtsEnabled] = useState(false)
   const [showSign, setShowSign] = useState(true)
   const [currentGesture, setCurrentGesture] = useState<string | null>(null)
-  const [currentVerse, setCurrentVerse] = useState<typeof bibleVerses.default[0] | null>(null)
+  const [currentVerse, setCurrentVerse] = useState<BibleVerse | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const [manualInput, setManualInput] = useState("")
   const [showInput, setShowInput] = useState(false)
   
   const webSpeech = useWebSpeech()
   const tts = useTts()
 
+  // Fetch and display a verse
+  const loadVerse = useCallback(async (verseKey: string) => {
+    setIsLoading(true)
+    try {
+      const verse = await getVerseWithTranslations(verseKey)
+      if (verse) {
+        setCurrentVerse(verse)
+        
+        // Speak the verse in selected language
+        if (ttsEnabled && tts.isSupported) {
+          const verseText = verse.text[selectedLang] || verse.text.en
+          tts.speak(verseText)
+        }
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [selectedLang, ttsEnabled, tts])
+
   // Process text input (from speech or typing)
-  const processInput = useCallback((text: string) => {
+  const processInput = useCallback(async (text: string) => {
     setTranscript(text)
     
     // Check for sign gesture
@@ -128,18 +91,12 @@ export function HomePage() {
       setTimeout(() => setCurrentGesture(null), 3000)
     }
     
-    // Show a Bible verse when religious keywords detected
-    if (containsScriptureKeyword(text)) {
-      const verse = getRandomVerse()
-      setCurrentVerse(verse)
-      
-      // Speak the verse in selected language
-      if (ttsEnabled && tts.isSupported) {
-        const verseText = verse[selectedLang as keyof typeof verse] || verse.en
-        tts.speak(verseText as string)
-      }
+    // Find relevant verse based on keywords
+    const verseKey = findRelevantVerse(text)
+    if (verseKey) {
+      await loadVerse(verseKey)
     }
-  }, [selectedLang, ttsEnabled, tts])
+  }, [loadVerse])
 
   // Handle new transcripts from speech recognition
   useEffect(() => {
@@ -148,12 +105,16 @@ export function HomePage() {
     }
   }, [webSpeech.transcript, processInput])
 
+  // Load a random verse on mount
+  useEffect(() => {
+    loadVerse(getRandomVerseKey())
+  }, [loadVerse])
+
   const toggleListening = useCallback(() => {
     if (webSpeech.isListening) {
       webSpeech.stop()
     } else {
       setTranscript("")
-      setCurrentVerse(null)
       webSpeech.start()
     }
   }, [webSpeech])
@@ -169,7 +130,7 @@ export function HomePage() {
   // Get verse text in selected language
   const getVerseText = () => {
     if (!currentVerse) return null
-    return currentVerse[selectedLang as keyof typeof currentVerse] || currentVerse.en
+    return currentVerse.text[selectedLang] || currentVerse.text.en
   }
 
   return (
@@ -208,7 +169,12 @@ export function HomePage() {
 
         {/* Scripture / Transcript Display */}
         <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6 text-center shadow-lg sm:p-8">
-          {currentVerse ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2">
+              <Loader2 className="size-5 animate-spin text-primary" />
+              <span className="text-muted-foreground">Loading scripture...</span>
+            </div>
+          ) : currentVerse ? (
             <div className="flex flex-col gap-4">
               {/* Verse Reference */}
               <span className="text-sm font-semibold text-primary">{currentVerse.ref}</span>
@@ -224,13 +190,6 @@ export function HomePage() {
                   You said: &quot;{transcript}&quot;
                 </p>
               )}
-            </div>
-          ) : transcript ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-lg text-foreground">{transcript}</p>
-              <p className="text-sm text-muted-foreground">
-                Say words like &quot;God&quot;, &quot;Jesus&quot;, &quot;praise&quot;, or &quot;amen&quot; to see scriptures
-              </p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -302,7 +261,7 @@ export function HomePage() {
                 type="text"
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
-                placeholder="Type words like God, Jesus, praise..."
+                placeholder="Type words like God, Jesus, love, peace..."
                 className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
               <Button type="submit" size="sm">
@@ -338,7 +297,7 @@ export function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-border px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">
-        For deaf users: Use text input or enable Sign mode for visual gestures
+        Bible verses from wldeh/bible-api | For deaf users: Use text input or enable Sign mode
       </footer>
     </div>
   )
