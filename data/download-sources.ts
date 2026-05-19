@@ -30,6 +30,11 @@ const EXPECTED_TRANSLATIONS = [
   "SpaRV.json",
   "FreJND.json",
   "PorBLivre.json",
+  // Nigerian languages (optional - will be skipped if not present in zip)
+  // "YorBib.json",
+  // "IgbBib.json",
+  // "HauBib.json",
+  // "NigPid.json",
 ]
 
 const CROSS_REFS_URL = "https://a.openbible.info/data/cross-references.zip"

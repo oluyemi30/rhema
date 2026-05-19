@@ -45,6 +45,7 @@ import {
 import { useSettingsStore } from "@/stores"
 import { useTutorialStore } from "@/stores/tutorial-store"
 import { useSettingsDialogStore } from "@/lib/settings-dialog"
+import { getLanguageDisplayName } from "@/lib/utils"
 import type { DeviceInfo } from "@/types/audio"
 
 /* -------------------------------------------------------------------------- */
@@ -489,7 +490,9 @@ function BibleSection() {
   }
 
   const englishTranslations = translations.filter((t) => t.language === "en")
-  const otherTranslations = translations.filter((t) => t.language !== "en")
+  const nigerianLanguages = ["yo", "ig", "ha", "pcm"]
+  const nigerianTranslations = translations.filter((t) => nigerianLanguages.includes(t.language))
+  const otherTranslations = translations.filter((t) => t.language !== "en" && !nigerianLanguages.includes(t.language))
 
   return (
     <div className="flex flex-col gap-6">
@@ -518,6 +521,19 @@ function BibleSection() {
                 ))}
               </>
             )}
+            {nigerianTranslations.length > 0 && (
+              <>
+                <div className="mt-1 px-2 py-1 text-[0.5625rem] font-medium uppercase tracking-wider text-muted-foreground">
+                  Nigerian Languages
+                </div>
+                {nigerianTranslations.map((t) => (
+                  <SelectItem key={t.id} value={String(t.id)}>
+                    {t.abbreviation} — {t.title}
+                    <span className="ml-1 text-muted-foreground">({getLanguageDisplayName(t.language)})</span>
+                  </SelectItem>
+                ))}
+              </>
+            )}
             {otherTranslations.length > 0 && (
               <>
                 <div className="mt-1 px-2 py-1 text-[0.5625rem] font-medium uppercase tracking-wider text-muted-foreground">
@@ -526,6 +542,7 @@ function BibleSection() {
                 {otherTranslations.map((t) => (
                   <SelectItem key={t.id} value={String(t.id)}>
                     {t.abbreviation} — {t.title}
+                    <span className="ml-1 text-muted-foreground">({getLanguageDisplayName(t.language)})</span>
                   </SelectItem>
                 ))}
               </>
