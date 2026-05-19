@@ -3,7 +3,7 @@ import { PanelHeader } from "@/components/ui/panel-header"
 import { LevelMeter } from "@/components/ui/level-meter"
 import { Button } from "@/components/ui/button"
 import { ApiKeyPrompt } from "@/components/ui/api-key-prompt"
-import { MicIcon, MicOffIcon } from "lucide-react"
+import { MicIcon, MicOffIcon, Volume2, VolumeX, Globe } from "lucide-react"
 import {
   useAudioStore,
   useDetectionStore,
@@ -13,7 +13,10 @@ import {
 } from "@/stores"
 import { useTauriEvent } from "@/hooks/use-tauri-event"
 import { useTranscription } from "@/hooks/use-transcription"
+import { useWebSpeech } from "@/hooks/use-web-speech"
 import { bibleActions } from "@/hooks/use-bible"
+import { useTts } from "@/hooks/use-tts"
+import { useAccessibilityStore } from "@/stores/accessibility-store"
 import type { DetectionResult, ReadingAdvance } from "@/types"
 
 /**
@@ -58,8 +61,35 @@ export function TranscriptPanel() {
     startTranscription,
     stopTranscription,
   } = useTranscription({ onMissingApiKey })
+  
+  // Web Speech API fallback for browser testing
+  const webSpeech = useWebSpeech()
+  const isUsingWebSpeech = webSpeech.isSupported && !webSpeech.isTauri
+  
   const hasPartial = useTranscriptStore((s) => s.currentPartial.length > 0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  
+  // TTS integration
+  const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported } = useTts()
+  const ttsEnabled = useAccessibilityStore((s) => s.ttsEnabled)
+  const setTtsEnabled = useAccessibilityStore((s) => s.setTtsEnabled)
+
+  // Use appropriate start/stop functions based on environment
+  const handleStart = useCallback(() => {
+    if (isUsingWebSpeech) {
+      webSpeech.start()
+    } else {
+      startTranscription()
+    }
+  }, [isUsingWebSpeech, webSpeech, startTranscription])
+
+  const handleStop = useCallback(() => {
+    if (isUsingWebSpeech) {
+      webSpeech.stop()
+    } else {
+      stopTranscription()
+    }
+  }, [isUsingWebSpeech, webSpeech, stopTranscription])
 
   useTauriEvent<{ rms: number; peak: number }>("audio_level", (payload) => {
     useAudioStore.getState().setLevel(payload)
@@ -70,7 +100,6 @@ export function TranscriptPanel() {
     "translation_command",
     (data) => {
       useBibleStore.getState().setActiveTranslation(data.translation_id)
-      console.log(`[VOICE] Translation switched to ${data.abbreviation}`)
     }
   )
 
@@ -194,6 +223,14 @@ export function TranscriptPanel() {
     }
   }, [segments])
 
+  // Auto-speak new segments when TTS is enabled
+  useEffect(() => {
+    if (ttsEnabled && ttsSupported && segments.length > 0) {
+      const lastSegment = segments[segments.length - 1]
+      speak(lastSegment.text)
+    }
+  }, [segments.length, ttsEnabled, ttsSupported, speak])
+
   return (
     <div
       data-slot="transcript-panel"
@@ -204,6 +241,20 @@ export function TranscriptPanel() {
         icon={<MicIcon className="size-3" />}
       >
         <div className="flex items-end gap-2 pb-px">
+          {/* TTS Toggle */}
+          {ttsSupported && (
+            <Button
+              variant={ttsEnabled ? "default" : "ghost"}
+              size="icon-xs"
+              onClick={() => {
+                if (isSpeaking) stopSpeaking()
+                setTtsEnabled(!ttsEnabled)
+              }}
+              title={ttsEnabled ? "Disable auto-speak" : "Enable auto-speak"}
+            >
+              {ttsEnabled ? <Volume2 className="size-3" /> : <VolumeX className="size-3" />}
+            </Button>
+          )}
           {isTranscribing && (
             <span
               className={`mb-1 size-1.5 rounded-full ${
@@ -260,19 +311,25 @@ export function TranscriptPanel() {
       </div>
 
       {/* Bottom control */}
-      <div className="flex gap-2 border-t border-border px-3 py-2">
+      <div className="flex items-center gap-2 border-t border-border px-3 py-2">
+        {isUsingWebSpeech && (
+          <span className="flex items-center gap-1 text-[0.625rem] text-muted-foreground" title="Using browser speech recognition for testing">
+            <Globe className="size-3" />
+            Browser
+          </span>
+        )}
         {isTranscribing ? (
           <Button
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive"
-            onClick={stopTranscription}
+            onClick={handleStop}
           >
             <MicOffIcon className="size-3" />
             Stop transcribing
           </Button>
         ) : (
-          <Button variant="ghost" size="sm" onClick={startTranscription}>
+          <Button variant="ghost" size="sm" onClick={handleStart}>
               <MicIcon className="size-3" />
             Start transcribing
           </Button>

@@ -76,7 +76,12 @@ const TRANSLATIONS_META: Array<{
   { file: "NKJV.json", abbreviation: "NKJV", title: "New King James Version", language: "en", license: "Thomas Nelson" },
   { file: "NLT.json", abbreviation: "NLT", title: "New Living Translation", language: "en", license: "Tyndale House" },
   { file: "AMP.json", abbreviation: "AMP", title: "Amplified Bible", language: "en", license: "Lockman Foundation" },
-  // Non-English
+  // Nigerian Languages
+  { file: "YorBib.json", abbreviation: "YorBib", title: "Bibeli Mimo (Yoruba Bible)", language: "yo", license: "Bible Society of Nigeria" },
+  { file: "IgbBib.json", abbreviation: "IgbBib", title: "Akwukwo Nso (Igbo Bible)", language: "ig", license: "Bible Society of Nigeria" },
+  { file: "HauBib.json", abbreviation: "HauBib", title: "Littafi Mai Tsarki (Hausa Bible)", language: "ha", license: "Bible Society of Nigeria" },
+  { file: "NigPid.json", abbreviation: "NigPid", title: "Nigerian Pidgin Bible", language: "pcm", license: "Wycliffe Bible Translators" },
+  // Other Languages
   { file: "SpaRV.json", abbreviation: "SpaRV", title: "Reina-Valera 1909", language: "es", license: "Public Domain" },
   { file: "FreJND.json", abbreviation: "FreJND", title: "J.N. Darby French 1885", language: "fr", license: "Public Domain" },
   { file: "PorBLivre.json", abbreviation: "PorBLivre", title: "Biblia Livre", language: "pt", license: "Public Domain" },

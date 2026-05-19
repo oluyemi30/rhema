@@ -8,6 +8,11 @@ import { useSettingsStore } from "@/stores/settings-store"
 import { toVerseRenderData } from "@/hooks/use-broadcast"
 import type { Verse } from "@/types"
 
+// Check if we're running in a Tauri environment
+function isTauri(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+}
+
 /**
  * Listens for remote control events from the Rust backend (OSC / HTTP API)
  * and dispatches them to the appropriate Zustand stores.
@@ -16,6 +21,9 @@ import type { Verse } from "@/types"
  */
 export function useRemoteControl() {
   useEffect(() => {
+    // Skip if not in Tauri environment
+    if (!isTauri()) return
+
     let cancelled = false
     const unlisteners: UnlistenFn[] = []
 
