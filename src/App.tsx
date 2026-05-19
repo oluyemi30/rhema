@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { Dashboard } from "@/components/layout/dashboard"
 import { HomePage } from "@/components/pages/home-page"
 import { useRemoteControl } from "@/hooks/use-remote-control"
@@ -12,13 +11,13 @@ function isTauri(): boolean {
 
 export function App() {
   useRemoteControl()
-  const [showDashboard, setShowDashboard] = useState(false)
-  
-  // In Tauri, show the full dashboard. In browser, show simple page
-  const showAdvanced = isTauri() || showDashboard
 
-  // Handle navigation from URL
-  if (typeof window !== "undefined" && window.location.pathname === "/dashboard") {
+  // Handle navigation from URL - show dashboard if path is /dashboard or in Tauri
+  const showDashboard = 
+    isTauri() || 
+    (typeof window !== "undefined" && window.location.pathname === "/dashboard")
+
+  if (showDashboard) {
     return (
       <>
         <Dashboard />
@@ -30,8 +29,7 @@ export function App() {
 
   return (
     <>
-      {showAdvanced ? <Dashboard /> : <HomePage />}
-      {showAdvanced && <TutorialOverlay />}
+      <HomePage />
       <Toaster position="bottom-right" />
     </>
   )

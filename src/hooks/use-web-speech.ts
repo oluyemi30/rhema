@@ -40,7 +40,6 @@ export function useWebSpeech() {
 
   const start = useCallback(async () => {
     if (!isSupported) {
-      console.warn("[v0] Web Speech API not supported or running in Tauri")
       return
     }
 
@@ -106,7 +105,6 @@ export function useWebSpeech() {
     }
 
     recognition.onerror = (event) => {
-      console.error("[v0] Web Speech error:", event.error)
       transcriptStore.getState().setConnectionStatus("error")
       
       // Auto-restart on certain errors
@@ -145,8 +143,7 @@ export function useWebSpeech() {
     // Start listening
     try {
       recognition.start()
-    } catch (e) {
-      console.error("[v0] Failed to start Web Speech:", e)
+    } catch {
       transcriptStore.getState().setConnectionStatus("error")
     }
   }, [isSupported, transcriptStore])

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -416,7 +416,7 @@ export function AccessibilityPanel() {
       
       return () => clearTimeout(timer)
     }
-  }, [currentText, store.signLanguageEnabled, store])
+  }, [currentText, store.signLanguageEnabled, store.setCurrentGesture])
 
   return (
     <div

@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react"
+import { useCallback } from "react"
 import { useAccessibilityStore } from "@/stores/accessibility-store"
 
 // Simple translation dictionary for common worship phrases
@@ -130,16 +130,9 @@ function translateText(text: string, targetLang: string): string {
 
 export function useTranslation() {
   const store = useAccessibilityStore()
-  const abortRef = useRef<AbortController | null>(null)
 
   const translate = useCallback(async (text: string, targetLang?: string): Promise<string> => {
     const lang = targetLang || store.targetLanguage
-    
-    // Cancel any pending translation
-    if (abortRef.current) {
-      abortRef.current.abort()
-    }
-    abortRef.current = new AbortController()
     
     store.setIsTranslating(true)
     
