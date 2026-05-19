@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from "react"
+import { useCallback, useRef, useEffect, useState } from "react"
 import { useTranscriptStore } from "@/stores/transcript-store"
 
 /**
@@ -32,6 +32,8 @@ function getSpeechRecognition(): typeof SpeechRecognition | null {
 export function useWebSpeech() {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const isListeningRef = useRef(false)
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState("")
   const transcriptStore = useTranscriptStore
 
   const isSupported = !isTauri() && isWebSpeechSupported()
@@ -56,20 +58,20 @@ export function useWebSpeech() {
     // Configure
     recognition.continuous = true
     recognition.interimResults = true
-    recognition.lang = "en-US" // Can be extended for Nigerian languages
+    recognition.lang = "en-US"
 
     // Update store on start
     transcriptStore.getState().setConnectionStatus("connecting")
 
     recognition.onstart = () => {
-      console.log("[v0] Web Speech recognition started")
       isListeningRef.current = true
+      setIsListening(true)
       transcriptStore.getState().setTranscribing(true)
       transcriptStore.getState().setConnectionStatus("connected")
     }
 
     recognition.onresult = (event) => {
-      const transcript = transcriptStore.getState()
+      const store = transcriptStore.getState()
       let interimTranscript = ""
       let finalTranscript = ""
 
@@ -84,14 +86,17 @@ export function useWebSpeech() {
 
       // Update partial (interim) results
       if (interimTranscript) {
-        transcript.setPartial(interimTranscript)
+        store.setPartial(interimTranscript)
+        setTranscript(interimTranscript)
       }
 
       // Add final segments
       if (finalTranscript) {
-        transcript.addSegment({
+        const trimmed = finalTranscript.trim()
+        setTranscript(trimmed)
+        store.addSegment({
           id: crypto.randomUUID(),
-          text: finalTranscript.trim(),
+          text: trimmed,
           is_final: true,
           confidence: event.results[event.results.length - 1][0].confidence || 0.9,
           words: [],
@@ -119,7 +124,6 @@ export function useWebSpeech() {
     }
 
     recognition.onend = () => {
-      console.log("[v0] Web Speech recognition ended")
       // Auto-restart if still supposed to be listening
       if (isListeningRef.current) {
         setTimeout(() => {
@@ -132,6 +136,7 @@ export function useWebSpeech() {
           }
         }, 100)
       } else {
+        setIsListening(false)
         transcriptStore.getState().setTranscribing(false)
         transcriptStore.getState().setConnectionStatus("disconnected")
       }
@@ -148,6 +153,7 @@ export function useWebSpeech() {
 
   const stop = useCallback(async () => {
     isListeningRef.current = false
+    setIsListening(false)
     if (recognitionRef.current) {
       recognitionRef.current.stop()
       recognitionRef.current = null
@@ -171,6 +177,8 @@ export function useWebSpeech() {
     start,
     stop,
     isSupported,
+    isListening,
+    transcript,
     isTauri: isTauri(),
   }
 }
